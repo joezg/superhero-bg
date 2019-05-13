@@ -67,13 +67,14 @@ view model =
     div []
         [ text "Here be tiles"
         , drawTile
-            (Tile [] []
-                |> addLimb 0
-                |> addSide 1 Tiny NoColor
+            (Tile.createTile ()
+                |> addSide 0 Tiny NoColor
+                |> addLimb 1
                 |> addLimb 2
                 |> addSide 3 Small Red
                 |> addLimb 5
-                |> addSide 6 Large Green
+                |> addSide 6 Medium Green
+                |> addLimb 9
                 |> addLimb 10
                 |> addSide 11 Tiny (Custom "aa23b7")
             )
