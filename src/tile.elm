@@ -1,4 +1,4 @@
-module Tile exposing (Color(..), Offset, Position, SideSize(..), Tile, addLimb, addSide, createTile, drawTile)
+module Tile exposing (Color(..), Position, Size(..), Tile(..), addLimb, addSide, createTile, drawTile, tileSizeToPixels)
 
 import Html exposing (..)
 import Set exposing (..)
@@ -23,17 +23,18 @@ type alias Limb =
 
 
 type alias Side =
-    { size : SideSize
+    { size : Size
     , position : Position
     , color : Color
     }
 
 
-type SideSize
+type Size
     = Tiny
     | Small
     | Medium
     | Large
+    | CustomSize Int
 
 
 type Color
@@ -41,7 +42,8 @@ type Color
     | Red
     | Green
     | Blue
-    | Custom String
+    | Yellow
+    | CustomColor String
 
 
 type alias Angle =
@@ -50,12 +52,6 @@ type alias Angle =
 
 type alias Position =
     Int
-
-
-type alias Offset =
-    { x : Float
-    , y : Float
-    }
 
 
 createTile : () -> Tile
@@ -67,7 +63,7 @@ addLimb : Position -> Tile -> Tile
 addLimb position tile =
     case tile of
         Complete parts ->
-            Invalid "Overlaping parts"
+            Invalid "To many parts"
 
         Invalid reason ->
             Invalid reason
@@ -76,17 +72,22 @@ addLimb position tile =
             validate { parts | limbs = position :: parts.limbs }
 
 
-addSide : Position -> SideSize -> Color -> Tile -> Tile
+addSide : Position -> Size -> Color -> Tile -> Tile
 addSide position size color tile =
-    case tile of
-        Complete parts ->
-            Invalid "Overlapping parts"
+    case size of
+        CustomSize length ->
+            Invalid "CustomSize is unsupported for a side"
 
-        Invalid reason ->
-            Invalid reason
+        _ ->
+            case tile of
+                Complete parts ->
+                    Invalid "To many parts"
 
-        Incomplete parts ->
-            validate { parts | sides = Side size position color :: parts.sides }
+                Invalid reason ->
+                    Invalid reason
+
+                Incomplete parts ->
+                    validate { parts | sides = Side size position color :: parts.sides }
 
 
 validate : TileParts -> Tile
@@ -96,42 +97,37 @@ validate parts =
             parts.limbs
 
         allSidePositions =
-            List.concat (List.map getSidePositions parts.sides)
+            List.concat (List.map getNarrowSidePositions parts.sides)
 
-        allAngles =
+        allPositions =
             allLimbPositions ++ allSidePositions
 
-        angleSet =
-            Set.fromList allAngles
+        positionSet =
+            Set.fromList allPositions
+
+        allWideSidePositions =
+            List.concat (List.map getWideSidePositions parts.sides)
+
+        sidesPositionSet =
+            Set.fromList allWideSidePositions
     in
-    if List.length allAngles /= Set.size angleSet then
+    if List.length parts.limbs > 8 then
+        Invalid "Too many limbs"
+
+    else if List.length allPositions /= Set.size positionSet then
         Invalid "Overlaping parts"
 
-    else if not (checkNoAdjacentSides (List.sortBy .position parts.sides)) then
+    else if List.length allWideSidePositions /= Set.size sidesPositionSet then
         Invalid "Adjacent sides"
 
-    else if List.length allAngles < 12 then
+    else if List.length allPositions < 12 then
         Incomplete parts
 
     else
         Complete parts
 
 
-checkNoAdjacentSides : List Side -> Bool
-checkNoAdjacentSides sides =
-    case sides of
-        first :: second :: rest ->
-            if (first.position + sideSizeToLength first.size) >= second.position then
-                False
-
-            else
-                checkNoAdjacentSides (second :: rest)
-
-        other ->
-            True
-
-
-sideSizeToLength : SideSize -> Int
+sideSizeToLength : Size -> Int
 sideSizeToLength size =
     case size of
         Tiny ->
@@ -146,28 +142,75 @@ sideSizeToLength size =
         Large ->
             4
 
-
-getSidePositions : Side -> List Position
-getSidePositions { size, position } =
-    List.range position (position + sideSizeToLength size - 1)
+        CustomSize int ->
+            int
 
 
-drawTile : Tile -> Offset -> Html msg
-drawTile tile offset =
+tileSizeToPixels : Size -> Int
+tileSizeToPixels size =
+    case size of
+        Tiny ->
+            50
+
+        Small ->
+            100
+
+        Medium ->
+            200
+
+        Large ->
+            300
+
+        CustomSize int ->
+            int
+
+
+getNarrowSidePositions : Side -> List Position
+getNarrowSidePositions =
+    getSidePositions True
+
+
+getWideSidePositions : Side -> List Position
+getWideSidePositions =
+    getSidePositions False
+
+
+getSidePositions : Bool -> Side -> List Position
+getSidePositions narrow { size, position } =
+    let
+        offset =
+            if narrow then
+                1
+
+            else
+                0
+
+        sideEnd =
+            modBy 12 <| position + sideSizeToLength size - offset
+    in
+    if sideEnd < position then
+        List.range position 11 ++ List.range 0 sideEnd
+
+    else
+        List.range position sideEnd
+
+
+drawTile : Size -> Tile -> Html msg
+drawTile size tile =
     case tile of
         Incomplete parts ->
-            div [] [ Html.text "incomplete" ]
+            Html.text "incomplete"
 
         Invalid reason ->
-            div [] [ Html.text ("invalid: " ++ reason) ]
+            Html.text ("invalid: " ++ reason)
 
         Complete parts ->
-            div []
-                [ svg
-                    [ viewBox "0 0 500 500"
-                    ]
-                    (renderTileBase () ++ renderLimbs parts.limbs ++ renderSides parts.sides)
+            svg
+                [ viewBox "0 0 212.5984 212.5984"
+                , height (tileSizeToPixels size |> String.fromInt)
+                , width (tileSizeToPixels size |> String.fromInt)
                 ]
+                (renderTileBase () ++ renderLimbs parts.limbs ++ renderSides parts.sides)
 
 
 renderSides : List Side -> List (Svg msg)
@@ -185,7 +228,7 @@ sideToPath { size, position, color } =
     sideSizeToPath size (positionToAngle position) color
 
 
-sideSizeToPath : SideSize -> Angle -> Color -> List (Svg msg)
+sideSizeToPath : Size -> Angle -> Color -> List (Svg msg)
 sideSizeToPath size angle color =
     let
         render =
@@ -207,6 +250,9 @@ sideSizeToPath size angle color =
         Large ->
             [ render "M106.2992,0V16.5965A490.5355,490.5355,0,0,0,183.984,151.1506l14.373,8.2982A484.8629,484.8629,0,0,1,106.2992,0Z"
             ]
+
+        CustomSize _ ->
+            []
 
 
 limbToPath : Position -> List (Svg msg)
@@ -265,7 +311,10 @@ addColor color =
         Blue ->
             Svg.Attributes.style "fill: blue;"
 
-        Custom hex ->
+        Yellow ->
+            Svg.Attributes.style "fill: yellow;"
+
+        CustomColor hex ->
             Svg.Attributes.style ("fill: #" ++ hex ++ ";")
 
 

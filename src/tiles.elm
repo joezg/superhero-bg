@@ -2,6 +2,7 @@ module Main exposing (Model, Msg(..), init, main, subscriptions, update, view)
 
 import Browser
 import Html exposing (..)
+import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Tile exposing (..)
 
@@ -23,13 +24,20 @@ main =
 -- MODEL
 
 
-type Model
-    = NoState
+type alias Model =
+    { allCombinations : List Tile
+    , after : Int
+    , show : Int
+    }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( NoState
+    ( { allCombinations =
+            getTilePermutations 0 <| Tile.createTile ()
+      , after = 0
+      , show = 20
+      }
     , Cmd.none
     )
 
@@ -39,14 +47,17 @@ init _ =
 
 
 type Msg
-    = NoOp
+    = Next
+    | Previous
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoOp ->
-            ( model, Cmd.none )
+        Next ->
+            ( { model | after = model.after + 20 }, Cmd.none )
+        Previous -> 
+            ( { model | after = model.after - 20 }, Cmd.none )
 
 
 
@@ -64,19 +75,49 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
+    let
+        toShow =
+            model.allCombinations |> List.drop model.after |> List.take model.show
+    in
     div []
-        [ text "Here be tiles"
-        , drawTile
-            (Tile.createTile ()
-                |> addSide 0 Tiny NoColor
-                |> addLimb 1
-                |> addLimb 2
-                |> addSide 3 Small Red
-                |> addLimb 5
-                |> addSide 6 Medium Green
-                |> addLimb 9
-                |> addLimb 10
-                |> addSide 11 Tiny (Custom "aa23b7")
-            )
-            (Offset 0 100)
+        [ List.length model.allCombinations |> String.fromInt |> (++) "Total generated tiles: " |> text
+        , List.map (span [ style "margin" "10px" ] << List.singleton << drawTile Small) toShow
+            |> div []
+        , button [ onClick Next ] [ text "Next" ]
+        , button [ onClick Previous ] [ text "Previous" ]
         ]
+
+
+getTilePermutations : Position -> Tile -> List Tile
+getTilePermutations position tile =
+    -- let
+    --     log1 =
+    --         Debug.log "tile" tile
+    --     log2 =
+    --         Debug.log "position" position
+    -- in
+    case tile of
+        Invalid _ ->
+            []
+
+        Complete _ ->
+            [ tile ]
+
+        Incomplete _ ->
+            let
+                l =
+                    getTilePermutations (position + 1) (addLimb position tile)
+
+                s1 =
+                    getTilePermutations (position + 1) (addSide position Tiny Red tile)
+
+                s2 =
+                    getTilePermutations (position + 2) (addSide position Small Yellow tile)
+
+                s3 =
+                    getTilePermutations (position + 3) (addSide position Medium Green tile)
+
+                s4 =
+                    getTilePermutations (position + 4) (addSide position Large Blue tile)
+            in
+            l ++ s1 ++ s2 ++ s3 ++ s4
