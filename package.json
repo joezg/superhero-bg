@@ -1,0 +1,21 @@
+{
+  "name": "superhero_bg",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "elm-live src/tiles.elm --open --start-page=index.html -- --output=main.js",
+    "semantic": "elm-live src/test-semantic.elm --open --start-page=index.html -- --output=main.js",
+    "build": "elm make src/tiles.elm  --output=main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joezg/superhero-bg.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/joezg/superhero-bg/issues"
+  },
+  "homepage": "https://github.com/joezg/superhero-bg#readme"
+}

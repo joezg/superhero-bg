@@ -4,6 +4,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Semantic as UI exposing (..)
 import Tile exposing (..)
 
 
@@ -56,7 +57,8 @@ update msg model =
     case msg of
         Next ->
             ( { model | after = model.after + 20 }, Cmd.none )
-        Previous -> 
+
+        Previous ->
             ( { model | after = model.after - 20 }, Cmd.none )
 
 
@@ -79,23 +81,35 @@ view model =
         toShow =
             model.allCombinations |> List.drop model.after |> List.take model.show
     in
-    div []
-        [ List.length model.allCombinations |> String.fromInt |> (++) "Total generated tiles: " |> text
-        , List.map (span [ style "margin" "10px" ] << List.singleton << drawTile Small) toShow
-            |> div []
-        , button [ onClick Next ] [ text "Next" ]
-        , button [ onClick Previous ] [ text "Previous" ]
+    container
+        [ menu
+        , segment
+            [ List.length model.allCombinations |> String.fromInt |> (++) "Total generated tiles: " |> text
+            , List.map (span [ style "margin" "10px" ] << List.singleton << drawTile Small) toShow
+                |> div []
+            , button [ onClick Next ] [ text "Next" ]
+            , button [ onClick Previous ] [ text "Previous" ]
+            ]
         ]
+
+
+menu : Html msg
+menu =
+    ui <| inverted <| UI.menu []
+
+
+container : List (Html msg) -> Html msg
+container children =
+    ui <| UI.container children
+
+
+segment : List (Html msg) -> Html msg
+segment children =
+    ui <| UI.segment children
 
 
 getTilePermutations : Position -> Tile -> List Tile
 getTilePermutations position tile =
-    -- let
-    --     log1 =
-    --         Debug.log "tile" tile
-    --     log2 =
-    --         Debug.log "position" position
-    -- in
     case tile of
         Invalid _ ->
             []
@@ -109,15 +123,15 @@ getTilePermutations position tile =
                     getTilePermutations (position + 1) (addLimb position tile)
 
                 s1 =
-                    getTilePermutations (position + 1) (addSide position Tiny Red tile)
+                    getTilePermutations (position + 1) (addSide position Tiny Tile.Red tile)
 
                 s2 =
-                    getTilePermutations (position + 2) (addSide position Small Yellow tile)
+                    getTilePermutations (position + 2) (addSide position Small Tile.Yellow tile)
 
                 s3 =
-                    getTilePermutations (position + 3) (addSide position Medium Green tile)
+                    getTilePermutations (position + 3) (addSide position Medium Tile.Green tile)
 
                 s4 =
-                    getTilePermutations (position + 4) (addSide position Large Blue tile)
+                    getTilePermutations (position + 4) (addSide position Large Tile.Blue tile)
             in
             l ++ s1 ++ s2 ++ s3 ++ s4
